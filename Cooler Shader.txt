@@ -1,0 +1,92 @@
+#ifdef VS 
+ 
+precision highp float;
+attribute vec3 position;
+attribute vec3 normal;
+uniform mat3 normalMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+varying vec3 fNormal;
+varying vec3 fPosition;
+uniform float time;
+varying vec3 modelX;
+
+// Borrowed from "complicated shader" class example
+
+vec2 Rotate(vec2 vec_in, float angle)
+{
+  vec2 vec_out;
+  vec_out.x=cos(angle)*vec_in.x-sin(angle)*vec_in.y;
+  vec_out.y=sin(angle)*vec_in.x+cos(angle)*vec_in.y;
+  return vec_out;
+}
+
+void main()
+{
+  modelX=position;
+  
+  // Comment out to stop twisting
+  // Suzzane goes from excited to spooked (Happy halloween!)
+  modelX.xy = Rotate(modelX.xy,0.5*modelX.x*sin(10.0*time));
+  
+  fNormal = normalize(normalMatrix * normal);
+  vec4 pos = modelViewMatrix * vec4(modelX, 1.0);
+  fPosition = pos.xyz;
+  gl_Position = projectionMatrix * pos;
+}
+ 
+#else 
+ 
+precision highp float;
+uniform float time;
+uniform vec2 resolution;
+varying vec3 fPosition;
+varying vec3 fNormal;
+
+const float specularE1 = 15.0;
+const float specularE2 = 5.0;
+
+const vec3  lightCol   = vec3(1.0,1.0,1.0);
+const vec3  objectCol  = vec3(0.3,0.5,0.7);
+
+// Produces noise effect for spookiness
+float noise(vec2 co)
+{
+  return fract(cos(dot(co, vec2(3, 80))) * 43750.0);
+}
+
+vec2 blinnPhongDir(vec3 lightDir, float lightInt, float Ka, float Kd, float Ks, float shininess)
+{
+  vec3 s = normalize(lightDir);
+  vec3 v = normalize(-fPosition);
+  vec3 n = normalize(fNormal);
+  vec3 h = normalize(v+s);
+  float diffuse = Ka + Kd * lightInt * max(0.0, dot(n, s));
+  float spec =  Ks * pow(max(0.0, dot(n,h)), shininess);
+  return vec2(diffuse, spec);
+}
+
+void main()
+{
+  float angle1      = 15.0*time;
+  float angle2      = 30.0*time;
+  
+  // Moves around yz plane
+  vec3 lightV1     = vec3(sin(angle1),0,cos(angle1));
+  // Moves around xz plane
+  vec3 lightV2     = vec3(0,cos(angle2),sin(angle2));
+  
+  float specularC1 = 0.5;
+  float specularC2 = 0.3;
+
+  float grain = noise(gl_FragCoord.xy + time);
+
+  vec3 Color1 = blinnPhongDir(lightV1, 0.0, 0.0, 0.0, specularC1, specularE1).y*lightCol;
+  vec3 Color2 = blinnPhongDir(lightV1, 0.0, 0.3, 0.7, 0.0,        1.0       ).x*objectCol;
+  vec3 Color3 = blinnPhongDir(lightV2, 0.0, 0.0, 0.0, specularC2, specularE2).y*lightCol;
+  vec3 Color4 = blinnPhongDir(lightV2, 0.0, 0.3, 0.7, 0.0,        1.0       ).x*objectCol;
+  
+  gl_FragColor = vec4(Color1+Color2-Color3+Color4,1.0) * grain; // -Color3 for added spooky xz dark light
+}
+ 
+#endif

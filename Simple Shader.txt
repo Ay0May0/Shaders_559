@@ -1,0 +1,46 @@
+#ifdef VS 
+ 
+precision highp float;
+attribute vec3 position;
+attribute vec3 normal;
+uniform mat3 normalMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+varying vec3 fNormal;
+
+varying vec3 worldPos;
+varying vec3 localPos;
+
+void main()
+{
+  fNormal = normalize(normalMatrix * normal);
+  vec4 pos = modelViewMatrix * vec4(position, 1.0);
+  worldPos = pos.xyz;
+  localPos = position;
+  gl_Position = projectionMatrix * pos;
+}
+ 
+#else 
+ 
+precision highp float;
+varying vec3 fNormal;
+varying vec3 worldPos;
+varying vec3 localPos;
+
+float stripes(float val, float dst) {
+  return ceil(mod(val*dst,3.0));
+}
+
+void main()
+{
+  vec3 dir = vec3(0,1,0);
+  vec3 dir2 = vec3(0.1,0,0.1);
+  vec3 cpos = localPos;
+  vec3 color = vec3(1, stripes(cpos.z,5.0),5);
+  vec3 color2 = vec3(1, stripes(cpos.y,5.0),5);
+  float diffuse = dot(fNormal,dir);
+  float diffuse2 = dot(fNormal,dir2);
+  gl_FragColor = vec4(diffuse * color, 1.0) + vec4(diffuse2 * color2, 1.0);
+}
+ 
+#endif
